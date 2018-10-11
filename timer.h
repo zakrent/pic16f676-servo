@@ -8,8 +8,12 @@
 #ifndef TIMER_H
 #define	TIMER_H
 
+#include <xc.h>
+#include <stdint.h>
+
 void timer_init();
-void timer_int_period(int time_us);
+void timer_int_period(unsigned int time_us);
+void timer_handle_int();
 void timer_int_enable();
 void timer_int_disable();
 

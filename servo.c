@@ -1,5 +1,5 @@
 #include "servo.h"
-#include "lcd.h"
+#include "timer.h"
 #include <stdint.h>
 
 enum state {
@@ -10,7 +10,7 @@ enum state {
 enum state current_state = PWM_OFF;
 
 struct servo {
-    char* port;
+    unsigned char* port;
     char mask;
     uint8_t value;
 };
@@ -20,12 +20,7 @@ uint8_t n_servos = 0;
 struct servo servos[MAX_SERVOS];
 
 void servo_init(){
-    T0IE = 1;
-    PSA = 0;
-    PS2 = 0;
-    PS1 = 0;
-    PS0 = 1;
-    TMR0 = 0;       
+    timer_int_enable();
 }
 
 void servo_interrupt(){
@@ -34,32 +29,25 @@ void servo_interrupt(){
             current_servo++;
             if(current_servo == n_servos){
                 current_servo = 0xff;
-                PS2 = 1;
-                PS1 = 1;
-                PS0 = 0;
-                TMR0 = 111+n_servos*8;          
+                timer_int_period(50000-(2000*n_servos));
             }
             else{
                 *(servos[current_servo].port) |= servos[current_servo].mask;
                 current_state = PWM_ON1;
-                PS2 = 0;
-                PS1 = 0;
-                PS0 = 1;
-                TMR0 = 42;             
+                timer_int_period(1000);      
             }
             break;
         case PWM_ON1:
             current_state = PWM_ON2;
-            TMR0 = servos[current_servo].value;             
+            timer_int_period(servos[current_servo].value*4);
             break;
         case PWM_ON2:
             *(servos[current_servo].port) &= 0xff ^ servos[current_servo].mask;
-            current_state = PWM_OFF;
-            TMR0 = 0xff-servos[current_servo].value;             
+            timer_int_period(1000-servos[current_servo].value*4);
             break;
     }
 }
-uint8_t servo_new(char* port, char* tris, char mask){
+uint8_t servo_new(unsigned char* port,unsigned char* tris,char mask){
     *tris &= 0xff ^ mask;
     struct servo new_servo = {port, mask, 0xaa};
     servos[n_servos] = new_servo;
